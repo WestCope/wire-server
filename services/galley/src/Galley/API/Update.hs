@@ -21,7 +21,7 @@ module Galley.API.Update
     blockConvH,
     unblockConvH,
     checkReusableCodeH,
-    joinConversationByIdH,
+    joinConversationByIdUnqualified,
     joinConversationByReusableCodeH,
     addCodeH,
     rmCodeH,
@@ -741,7 +741,7 @@ joinConversationByReusableCode lusr zcon convCode = do
   c <- verifyReusableCode convCode
   joinConversation lusr zcon (codeConversation c) CodeAccess
 
-joinConversationByIdH ::
+joinConversationByIdUnqualified ::
   Members
     '[ BrigAccess,
        FederatorAccess,
@@ -758,11 +758,13 @@ joinConversationByIdH ::
        TeamStore
      ]
     r =>
-  UserId ::: ConnId ::: ConvId ::: JSON ->
-  Sem r Response
-joinConversationByIdH (zusr ::: zcon ::: cnv ::: _) = do
+  UserId ->
+  ConnId ->
+  ConvId ->
+  Sem r (UpdateResult Event)
+joinConversationByIdUnqualified zusr zcon cnv = do
   lusr <- qualifyLocal zusr
-  handleUpdateResult <$> joinConversationById lusr zcon cnv
+  joinConversationById lusr zcon cnv
 
 joinConversationById ::
   Members

@@ -1383,9 +1383,12 @@ postNewOtrBroadcast lusr con val msg = do
   let sender = newOtrSender msg
       recvrs = newOtrRecipients msg
   now <- input
-  withValidOtrBroadcastRecipients (tUnqualified lusr) sender recvrs val now $ \rs -> do
-    let (_, toUsers) = foldr (newMessage (qUntagged lusr) con Nothing msg now) ([], []) rs
-    E.push (catMaybes toUsers)
+  withValidOtrBroadcastRecipients (tUnqualified lusr) sender recvrs val now >>= \case
+    Left otr -> pure otr
+    Right (m, rs) -> do
+      let (_, toUsers) = foldr (newMessage (qUntagged lusr) con Nothing msg now) ([], []) rs
+      E.push (catMaybes toUsers)
+      pure (OtrSent m)
 
 postNewOtrMessage ::
   Members
@@ -1787,9 +1790,9 @@ withValidOtrBroadcastRecipients ::
   OtrRecipients ->
   OtrFilterMissing ->
   UTCTime ->
-  ([(LocalMember, ClientId, Text)] -> Sem r ()) ->
-  Sem r OtrResult
-withValidOtrBroadcastRecipients usr clt rcps val now go = withBindingTeam usr $ \tid -> do
+  Sem r (Either OtrResult (ClientMismatch, [(LocalMember, ClientId, Text)]))
+withValidOtrBroadcastRecipients usr clt rcps val now = do
+  tid <- getBindingTeam usr
   limit <- fromIntegral . fromRange <$> E.fanoutLimit
   -- If we are going to fan this out to more than limit, we want to fail early
   unless (Map.size (userClientMap (otrRecipientsMap rcps)) <= limit) $
@@ -1809,7 +1812,7 @@ withValidOtrBroadcastRecipients usr clt rcps val now go = withBindingTeam usr $ 
       then Clients.fromUserClients <$> E.lookupClients users
       else E.getClients users
   let membs = newMember <$> users
-  handleOtrResponse User usr clt rcps membs clts val now go
+  handleOtrResponse User usr clt rcps membs clts val now
   where
     maybeFetchLimitedTeamMemberList limit tid uListInFilter = do
       -- Get the users in the filter (remote ids are not in a local team)
@@ -1861,7 +1864,9 @@ withValidOtrRecipients utype usr clt cnv rcps val now go = do
         if isInternal
           then Clients.fromUserClients <$> E.lookupClients localMemberIds
           else E.getClients localMemberIds
-      handleOtrResponse utype usr clt rcps localMembers clts val now go
+      handleOtrResponse utype usr clt rcps localMembers clts val now >>= \case
+        Left otr -> pure otr
+        Right (m, r) -> go r $> OtrSent m
 
 handleOtrResponse ::
   Members '[BrigAccess, Error LegalHoldError, Input Opts, TeamStore, TinyLog] r =>
@@ -1881,16 +1886,14 @@ handleOtrResponse ::
   OtrFilterMissing ->
   -- | The current timestamp.
   UTCTime ->
-  -- | Callback if OtrRecipients are valid
-  ([(LocalMember, ClientId, Text)] -> Sem r ()) ->
-  Sem r OtrResult
-handleOtrResponse utype usr clt rcps membs clts val now go = case checkOtrRecipients usr clt rcps membs clts val now of
-  ValidOtrRecipients m r -> go r >> pure (OtrSent m)
+  Sem r (Either OtrResult (ClientMismatch, [(LocalMember, ClientId, Text)]))
+handleOtrResponse utype usr clt rcps membs clts val now = case checkOtrRecipients usr clt rcps membs clts val now of
+  ValidOtrRecipients m r -> pure . Right $ (m, r)
   MissingOtrRecipients m -> mapError @LegalholdConflicts (const MissingLegalholdConsent) $ do
     guardLegalholdPolicyConflicts (userToProtectee utype usr) (missingClients m)
-    pure (OtrMissingRecipients m)
-  InvalidOtrSenderUser -> pure $ OtrConversationNotFound mkErrorDescription
-  InvalidOtrSenderClient -> pure $ OtrUnknownClient mkErrorDescription
+    pure . Left $ OtrMissingRecipients m
+  InvalidOtrSenderUser -> pure . Left $ OtrConversationNotFound mkErrorDescription
+  InvalidOtrSenderClient -> pure . Left $ OtrUnknownClient mkErrorDescription
 
 -- | Check OTR sender and recipients for validity and completeness
 -- against a given list of valid members and clients, optionally
@@ -1975,18 +1978,17 @@ checkOtrRecipients usr sid prs vms vcs val now
       OtrIgnoreMissing us -> Clients.filter (`Set.notMember` us) miss
 
 -- Copied from 'Galley.API.Team' to break import cycles
-withBindingTeam ::
+getBindingTeam ::
   Members
     '[ Error TeamError,
        TeamStore
      ]
     r =>
   UserId ->
-  (TeamId -> Sem r b) ->
-  Sem r b
-withBindingTeam zusr callback = do
+  Sem r TeamId
+getBindingTeam zusr = do
   tid <- E.getOneUserTeam zusr >>= note TeamNotFound
   binding <- E.getTeamBinding tid >>= note TeamNotFound
   case binding of
-    Binding -> callback tid
+    Binding -> return tid
     NonBinding -> throw NotABindingTeamMember

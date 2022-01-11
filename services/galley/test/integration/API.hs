@@ -2149,6 +2149,7 @@ accessConvMeta = do
           alice
           [InviteAccess]
           ActivatedAccessRole
+          (error "todo(leif)")
           (Just "gossip")
           Nothing
           Nothing

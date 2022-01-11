@@ -73,6 +73,7 @@ convMetadata c =
     (convCreator c)
     (convAccess c)
     (convAccessRole c)
+    (error "todo(leif)")
     (convName c)
     (convTeam c)
     (convMessageTimer c)

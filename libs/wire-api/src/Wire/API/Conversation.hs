@@ -24,7 +24,7 @@ module Wire.API.Conversation
   ( -- * Conversation
     ConversationMetadata (..),
     Conversation (..),
-    mkConversation,
+    -- mkConversation,
     cnvType,
     cnvCreator,
     cnvAccess,
@@ -47,6 +47,7 @@ module Wire.API.Conversation
     -- * Conversation properties
     Access (..),
     AccessRole (..),
+    AccessRoleV2 (..),
     ConvType (..),
     ReceiptMode (..),
 
@@ -119,6 +120,7 @@ data ConversationMetadata = ConversationMetadata
     cnvmCreator :: UserId,
     cnvmAccess :: [Access],
     cnvmAccessRole :: AccessRole,
+    cnvmAccessRoles :: Set AccessRoleV2,
     cnvmName :: Maybe Text,
     -- FUTUREWORK: Think if it makes sense to make the team ID qualified due to
     -- federation.
@@ -147,6 +149,7 @@ conversationMetadataObjectSchema =
         schema
     <*> cnvmAccess .= field "access" (array schema)
     <*> cnvmAccessRole .= field "access_role" schema
+    <*> cnvmAccessRoles .= field "access_role_v2" (set schema)
     <*> cnvmName .= optField "name" (maybeWithDefault A.Null schema)
     <* const ("0.0" :: Text) .= optional (field "last_event" schema)
     <* const ("1970-01-01T00:00:00.000Z" :: Text)
@@ -178,20 +181,20 @@ data Conversation = Conversation
   deriving (Arbitrary) via (GenericUniform Conversation)
   deriving (FromJSON, ToJSON, S.ToSchema) via Schema Conversation
 
-mkConversation ::
-  Qualified ConvId ->
-  ConvType ->
-  UserId ->
-  [Access] ->
-  AccessRole ->
-  Maybe Text ->
-  ConvMembers ->
-  Maybe TeamId ->
-  Maybe Milliseconds ->
-  Maybe ReceiptMode ->
-  Conversation
-mkConversation qid ty uid acc role name mems tid ms rm =
-  Conversation qid (ConversationMetadata ty uid acc role name tid ms rm) mems
+-- mkConversation ::
+--   Qualified ConvId ->
+--   ConvType ->
+--   UserId ->
+--   [Access] ->
+--   AccessRole ->
+--   Maybe Text ->
+--   ConvMembers ->
+--   Maybe TeamId ->
+--   Maybe Milliseconds ->
+--   Maybe ReceiptMode ->
+--   Conversation
+-- mkConversation qid ty uid acc role name mems tid ms rm =
+--   Conversation qid (ConversationMetadata ty uid acc role name tid ms rm) mems
 
 cnvType :: Conversation -> ConvType
 cnvType = cnvmType . cnvMetadata
@@ -436,9 +439,27 @@ data AccessRole
   deriving (Arbitrary) via (GenericUniform AccessRole)
   deriving (ToJSON, FromJSON, S.ToSchema) via Schema AccessRole
 
+data AccessRoleV2
+  = TeamMemberAccessRole
+  | GuestAccessRole
+  | ServiceAccessRole
+  deriving stock (Eq, Ord, Show, Generic)
+  deriving (Arbitrary) via (GenericUniform AccessRoleV2)
+  deriving (ToJSON, FromJSON, S.ToSchema) via Schema AccessRoleV2
+
+instance ToSchema AccessRoleV2 where
+  schema =
+    (S.schema . description ?~ "Which users/services can join conversations") $
+      enum @Text "AccessRoleV2" $
+        mconcat
+          [ element "team_member" TeamMemberAccessRole,
+            element "guest" GuestAccessRole,
+            element "service" ServiceAccessRole
+          ]
+
 instance ToSchema AccessRole where
   schema =
-    (S.schema . description ?~ "Which users can join conversations") $
+    (S.schema . description ?~ "Which users can join conversations (deprecated)") $
       enum @Text "AccessRole" $
         mconcat
           [ element "private" PrivateAccessRole,

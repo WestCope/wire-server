@@ -228,7 +228,7 @@ conversationMeta conv =
     <$> retry x1 (query1 Cql.selectConv (params LocalQuorum (Identity conv)))
   where
     toConvMeta (t, c, a, r, n, i, _, mt, rm) =
-      ConversationMetadata t c (defAccess t a) (maybeRole t r) n i mt rm
+      ConversationMetadata t c (defAccess t a) (maybeRole t r) (error "todo(leif)") n i mt rm
 
 isConvAlive :: ConvId -> Client Bool
 isConvAlive cid = do

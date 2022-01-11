@@ -713,6 +713,7 @@ fromNewRemoteConversation loc rc@NewRemoteConversation {..} =
             cnvmCreator = rcOrigUserId,
             cnvmAccess = rcCnvAccess,
             cnvmAccessRole = rcCnvAccessRole,
+            cnvmAccessRoles = error "todo(leif)",
             cnvmName = rcCnvName,
             -- FUTUREWORK: Document this is the same domain as the conversation
             -- domain.

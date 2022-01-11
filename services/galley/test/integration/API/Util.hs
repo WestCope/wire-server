@@ -2053,6 +2053,7 @@ mkConv cnvId creator selfRole otherMembers =
         creator
         []
         ActivatedAccessRole
+        (error "todo(leif)")
         (Just "federated gossip")
         Nothing
         Nothing

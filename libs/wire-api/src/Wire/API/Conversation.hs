@@ -33,6 +33,7 @@ module Wire.API.Conversation
     cnvTeam,
     cnvMessageTimer,
     cnvReceiptMode,
+    cnvAccessRoles,
     ConversationCoverView (..),
     ConversationList (..),
     ListConversations (..),
@@ -69,6 +70,8 @@ module Wire.API.Conversation
     ConversationReceiptModeUpdate (..),
     ConversationMessageTimerUpdate (..),
     toConversationAccessDataResponse,
+    toAccessRole,
+    toAccessRoles,
 
     -- * re-exports
     module Wire.API.Conversation.Member,
@@ -158,11 +161,10 @@ conversationMetadataObjectSchema =
       .= optional (field "last_event_time" schema)
     <*> cnvmTeam .= optField "team" (maybeWithDefault A.Null schema)
     <*> cnvmMessageTimer
-      .= ( optFieldWithDocModifier
-             "message_timer"
-             (description ?~ "Per-conversation message timer (can be null)")
-             (maybeWithDefault A.Null schema)
-         )
+      .= optFieldWithDocModifier
+        "message_timer"
+        (description ?~ "Per-conversation message timer (can be null)")
+        (maybeWithDefault A.Null schema)
     <*> cnvmReceiptMode .= optField "receipt_mode" (maybeWithDefault A.Null schema)
 
 instance ToSchema ConversationMetadata where
@@ -209,6 +211,9 @@ cnvAccess = cnvmAccess . cnvMetadata
 
 cnvAccessRole :: Conversation -> AccessRole
 cnvAccessRole = cnvmAccessRole . cnvMetadata
+
+cnvAccessRoles :: Conversation -> Set AccessRoleV2
+cnvAccessRoles = cnvmAccessRoles . cnvMetadata
 
 cnvName :: Conversation -> Maybe Text
 cnvName = cnvmName . cnvMetadata
@@ -450,10 +455,24 @@ data AccessRoleV2
   deriving (ToJSON, FromJSON, S.ToSchema) via Schema AccessRoleV2
 
 toAccessRoles :: AccessRole -> Set AccessRoleV2
-toAccessRoles = undefined
+toAccessRoles = \case
+  PrivateAccessRole -> Set.fromList []
+  TeamAccessRole -> Set.fromList [TeamMemberAccessRole]
+  ActivatedAccessRole -> Set.fromList [TeamMemberAccessRole, GuestAccessRole]
+  NonActivatedAccessRole -> Set.fromList [TeamMemberAccessRole, GuestAccessRole, ServiceAccessRole]
 
+-- todo(leif): check if this works, might be better to return Maybe and let the call side decide what to do in case of incompatibility
 toAccessRole :: Set AccessRoleV2 -> AccessRole
-toAccessRole = undefined
+toAccessRole accessRoles
+  | Set.null accessRoles = NonActivatedAccessRole
+  | Set.fromList [TeamMemberAccessRole] == accessRoles = TeamAccessRole
+  | Set.fromList [GuestAccessRole] == accessRoles = NonActivatedAccessRole
+  | Set.fromList [ServiceAccessRole] == accessRoles = NonActivatedAccessRole
+  | Set.fromList [TeamMemberAccessRole, GuestAccessRole] == accessRoles = NonActivatedAccessRole
+  | Set.fromList [TeamMemberAccessRole, ServiceAccessRole] == accessRoles = NonActivatedAccessRole
+  | Set.fromList [GuestAccessRole, ServiceAccessRole] == accessRoles = NonActivatedAccessRole
+  | Set.fromList [TeamMemberAccessRole, GuestAccessRole, ServiceAccessRole] == accessRoles = NonActivatedAccessRole
+  | otherwise = ActivatedAccessRole
 
 instance ToSchema AccessRoleV2 where
   schema =
@@ -616,6 +635,7 @@ data NewConv = NewConv
     newConvName :: Maybe Text,
     newConvAccess :: Set Access,
     newConvAccessRole :: Maybe AccessRole,
+    newConvAccessRoles :: Maybe (Set AccessRoleV2),
     newConvTeam :: Maybe ConvTeamInfo,
     newConvMessageTimer :: Maybe Milliseconds,
     newConvReceiptMode :: Maybe ReceiptMode,
@@ -649,6 +669,7 @@ newConvSchema =
       <*> (Set.toList . newConvAccess)
         .= (fromMaybe mempty <$> optField "access" (Set.fromList <$> array schema))
       <*> newConvAccessRole .= maybe_ (optField "access_role" schema)
+      <*> newConvAccessRoles .= maybe_ (optField "access_roles_v2" (set schema))
       <*> newConvTeam
         .= maybe_
           ( optFieldWithDocModifier
@@ -795,7 +816,7 @@ modelConversationUpdateName = Doc.defineModel "ConversationUpdateName" $ do
 
 data ConversationAccessData = ConversationAccessData
   { cupAccess :: Set Access,
-    cupAccessRole :: AccessRole
+    cupAccessRole :: Set AccessRoleV2
   }
   deriving stock (Eq, Show, Generic)
   deriving (Arbitrary) via (GenericUniform ConversationAccessData)
@@ -806,7 +827,7 @@ instance ToSchema ConversationAccessData where
     object "ConversationAccessData" $
       ConversationAccessData
         <$> cupAccess .= field "access" (set schema)
-        <*> cupAccessRole .= field "access_role" schema
+        <*> cupAccessRole .= field "access_role" (set schema)
 
 modelConversationAccessData :: Doc.Model
 modelConversationAccessData = Doc.defineModel "ConversationAccessData" $ do
@@ -834,7 +855,7 @@ instance ToSchema ConversationAccessDataResponse where
         <*> cadrAccessRolesV2 .= field "access_role_v2" (set schema)
 
 toConversationAccessDataResponse :: ConversationAccessData -> ConversationAccessDataResponse
-toConversationAccessDataResponse = error "todo(leif)"
+toConversationAccessDataResponse (ConversationAccessData access accessRoles) = ConversationAccessDataResponse access (toAccessRole accessRoles) accessRoles
 
 -- data ConversationAccessRequest = ConversationAccessRequest
 --   { carAccess :: Set Access,

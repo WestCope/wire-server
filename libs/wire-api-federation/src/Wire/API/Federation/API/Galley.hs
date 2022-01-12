@@ -31,6 +31,7 @@ import Wire.API.Arbitrary (Arbitrary, GenericUniform (..))
 import Wire.API.Conversation
   ( Access,
     AccessRole,
+    AccessRoleV2,
     ConvType,
     ConversationMetadata,
     ReceiptMode,
@@ -158,6 +159,7 @@ data NewRemoteConversation conv = NewRemoteConversation
     rcCnvType :: ConvType,
     rcCnvAccess :: [Access],
     rcCnvAccessRole :: AccessRole,
+    rcCnvAccessRoles :: Set AccessRoleV2,
     -- | The conversation name,
     rcCnvName :: Maybe Text,
     -- | Members of the conversation apart from the creator

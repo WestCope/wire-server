@@ -185,10 +185,10 @@ instance IsConversationAction ConversationJoin where
           Map.fromList . map (view userId &&& id)
             <$> E.selectTeamMembers tid newUsers
         let userMembershipMap = map (id &&& flip Map.lookup tms) newUsers
-        ensureAccessRole (convAccessRole conv) userMembershipMap
+        ensureAccessRole (convAccessRoles conv) userMembershipMap
         ensureConnectedOrSameTeam lusr newUsers
       checkLocals lusr Nothing newUsers = do
-        ensureAccessRole (convAccessRole conv) (zip newUsers $ repeat Nothing)
+        ensureAccessRole (convAccessRoles conv) (zip newUsers $ repeat Nothing)
         ensureConnectedOrSameTeam lusr newUsers
 
       checkRemotes ::
@@ -359,23 +359,24 @@ instance IsConversationAction ConversationAccessData where
         r
   conversationAction = ConversationActionAccessUpdate
   ensureAllowed _ target conv self = do
-    -- 'PrivateAccessRole' is for self-conversations, 1:1 conversations and
-    -- so on; users are not supposed to be able to make other conversations
-    -- have 'PrivateAccessRole'
-    when
-      ( PrivateAccess `elem` cupAccess target
-          || PrivateAccessRole == cupAccessRole target
-      )
-      $ throw InvalidTargetAccess
-    -- Team conversations incur another round of checks
-    case convTeam conv of
-      Just _ -> do
-        -- Access mode change might result in members being removed from the
-        -- conversation, so the user must have the necessary permission flag
-        ensureActionAllowed RemoveConversationMember self
-      Nothing ->
-        when (cupAccessRole target == TeamAccessRole) $
-          throw InvalidTargetAccess
+    -- -- 'PrivateAccessRole' is for self-conversations, 1:1 conversations and
+    -- -- so on; users are not supposed to be able to make other conversations
+    -- -- have 'PrivateAccessRole'
+    -- when
+    --   ( PrivateAccess `elem` cupAccess target
+    --       || PrivateAccessRole == cupAccessRole target
+    --   )
+    --   $ throw InvalidTargetAccess
+    -- -- Team conversations incur another round of checks
+    -- case convTeam conv of
+    --   Just _ -> do
+    --     -- Access mode change might result in members being removed from the
+    --     -- conversation, so the user must have the necessary permission flag
+    --     ensureActionAllowed RemoveConversationMember self
+    --   Nothing ->
+    --     when (cupAccessRole target == TeamAccessRole) $
+    --       throw InvalidTargetAccess
+    error "todo(leif):implement"
   conversationActionTag' _ _ = ModifyConversationAccess
   performAction qusr lcnv conv action = do
     when (convAccessData conv == action) noChanges
@@ -412,18 +413,19 @@ instance IsConversationAction ConversationAccessData where
     where
       filterActivated :: Member BrigAccess r => BotsAndMembers -> Sem r BotsAndMembers
       filterActivated bm
-        | convAccessRole conv > ActivatedAccessRole
-            && cupAccessRole action <= ActivatedAccessRole = do
-          activated <- map User.userId <$> E.lookupActivatedUsers (toList (bmLocals bm))
-          -- FUTUREWORK: should we also remove non-activated remote users?
-          pure $ bm {bmLocals = Set.fromList activated}
+        -- | convAccessRole conv > ActivatedAccessRole
+        --     && cupAccessRole action <= ActivatedAccessRole = do
+        --   activated <- map User.userId <$> E.lookupActivatedUsers (toList (bmLocals bm))
+        --   -- FUTUREWORK: should we also remove non-activated remote users?
+        --   pure $ bm {bmLocals = Set.fromList activated}
+        -- todo(leif):fix
         | otherwise = pure bm
 
       filterTeammates :: Member TeamStore r => BotsAndMembers -> Sem r BotsAndMembers
       filterTeammates bm = do
         -- In a team-only conversation we also want to remove bots and guests
         case (cupAccessRole action, convTeam conv) of
-          (TeamAccessRole, Just tid) -> do
+          (_, Just tid) -> do -- todo(leif):fix (match TeamAccessRole)
             onlyTeamUsers <- flip filterM (toList (bmLocals bm)) $ \user ->
               isJust <$> E.getTeamMember tid user
             pure $

@@ -32,6 +32,7 @@ import Galley.Types.Teams
 import Galley.Types.Teams.Intra
 import Galley.Types.Teams.SearchVisibility
 import Imports
+import Wire.API.Conversation (AccessRoleV2)
 import qualified Wire.API.Team.Feature as Public
 
 deriving instance Cql MutedStatus
@@ -85,6 +86,11 @@ instance Cql AccessRole where
     4 -> return NonActivatedAccessRole
     n -> Left $ "Unexpected AccessRole value: " ++ show n
   fromCql _ = Left "AccessRole value: int expected"
+
+instance Cql AccessRoleV2 where
+  ctype = error "todo(leif)"
+  toCql = error "todo(leif)"
+  fromCql = error "todo(leif)"
 
 instance Cql ConvTeamInfo where
   ctype = Tagged $ UdtColumn "teaminfo" [("teamid", UuidColumn), ("managed", BooleanColumn)]

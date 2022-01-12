@@ -37,6 +37,7 @@ module Galley.Data.Conversation
 where
 
 import Data.Id
+import Data.Set (Set)
 import qualified Data.Set as Set
 import qualified Data.UUID.Tagged as U
 import Galley.Cassandra.Instances ()
@@ -72,8 +73,8 @@ convMetadata c =
     (convType c)
     (convCreator c)
     (convAccess c)
-    (convAccessRole c)
-    (error "todo(leif)")
+    (toAccessRole $ convAccessRoles c)
+    (convAccessRoles c)
     (convName c)
     (convTeam c)
     (convMessageTimer c)
@@ -83,20 +84,20 @@ convAccessData :: Conversation -> ConversationAccessData
 convAccessData conv =
   ConversationAccessData
     (Set.fromList (convAccess conv))
-    (convAccessRole conv)
+    (convAccessRoles conv)
 
-defRole :: AccessRole
-defRole = ActivatedAccessRole
+defRole :: Set AccessRoleV2
+defRole = toAccessRoles ActivatedAccessRole
 
-maybeRole :: ConvType -> Maybe AccessRole -> AccessRole
+maybeRole :: ConvType -> Maybe (Set AccessRoleV2) -> Set AccessRoleV2
 maybeRole SelfConv _ = privateRole
 maybeRole ConnectConv _ = privateRole
 maybeRole One2OneConv _ = privateRole
 maybeRole RegularConv Nothing = defRole
 maybeRole RegularConv (Just r) = r
 
-privateRole :: AccessRole
-privateRole = PrivateAccessRole
+privateRole :: Set AccessRoleV2
+privateRole = toAccessRoles PrivateAccessRole
 
 defRegularConvAccess :: [Access]
 defRegularConvAccess = [InviteAccess]

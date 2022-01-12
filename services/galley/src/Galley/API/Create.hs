@@ -647,8 +647,8 @@ toUUIDs a b = do
   b' <- U.fromUUID (toUUID b) & note InvalidUUID4
   return (a', b')
 
-accessRole :: NewConv -> AccessRole
-accessRole b = fromMaybe Data.defRole (newConvAccessRole b)
+accessRole :: NewConv -> Set AccessRoleV2
+accessRole b = fromMaybe Data.defRole (newConvAccessRoles b)
 
 access :: NewConv -> [Access]
 access a = case Set.toList (newConvAccess a) of

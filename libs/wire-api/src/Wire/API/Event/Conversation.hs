@@ -219,7 +219,7 @@ data EventData
   | EdConvReceiptModeUpdate ConversationReceiptModeUpdate
   | EdConvRename ConversationRename
   | EdConvDelete
-  | EdConvAccessUpdate ConversationAccessData
+  | EdConvAccessUpdate ConversationAccessDataResponse
   | EdConvMessageTimerUpdate ConversationMessageTimerUpdate
   | EdConvCodeUpdate ConversationCode
   | EdConvCodeDelete

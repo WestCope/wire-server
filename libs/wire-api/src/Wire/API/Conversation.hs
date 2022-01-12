@@ -65,8 +65,10 @@ module Wire.API.Conversation
     -- * update
     ConversationRename (..),
     ConversationAccessData (..),
+    ConversationAccessDataResponse (..),
     ConversationReceiptModeUpdate (..),
     ConversationMessageTimerUpdate (..),
+    toConversationAccessDataResponse,
 
     -- * re-exports
     module Wire.API.Conversation.Member,
@@ -447,6 +449,12 @@ data AccessRoleV2
   deriving (Arbitrary) via (GenericUniform AccessRoleV2)
   deriving (ToJSON, FromJSON, S.ToSchema) via Schema AccessRoleV2
 
+toAccessRoles :: AccessRole -> Set AccessRoleV2
+toAccessRoles = undefined
+
+toAccessRole :: Set AccessRoleV2 -> AccessRole
+toAccessRole = undefined
+
 instance ToSchema AccessRoleV2 where
   schema =
     (S.schema . description ?~ "Which users/services can join conversations") $
@@ -805,8 +813,35 @@ modelConversationAccessData = Doc.defineModel "ConversationAccessData" $ do
   Doc.description "Contains conversation properties to update"
   Doc.property "access" (Doc.unique $ Doc.array typeAccess) $
     Doc.description "List of conversation access modes."
-  Doc.property "access_role" (Doc.bytes') $
+  Doc.property "access_role" Doc.bytes' $
     Doc.description "Conversation access role: private|team|activated|non_activated"
+
+data ConversationAccessDataResponse = ConversationAccessDataResponse
+  { cadrAccess :: Set Access,
+    cadrAccessRole :: AccessRole,
+    cadrAccessRolesV2 :: Set AccessRoleV2
+  }
+  deriving stock (Eq, Show, Generic)
+  deriving (Arbitrary) via (GenericUniform ConversationAccessDataResponse)
+  deriving (FromJSON, ToJSON, S.ToSchema) via Schema ConversationAccessDataResponse
+
+instance ToSchema ConversationAccessDataResponse where
+  schema =
+    object "ConversationAccessDataResponse" $
+      ConversationAccessDataResponse
+        <$> cadrAccess .= field "access" (set schema)
+        <*> cadrAccessRole .= field "access_role" schema
+        <*> cadrAccessRolesV2 .= field "access_role_v2" (set schema)
+
+toConversationAccessDataResponse :: ConversationAccessData -> ConversationAccessDataResponse
+toConversationAccessDataResponse = error "todo(leif)"
+
+-- data ConversationAccessRequest = ConversationAccessRequest
+--   { carAccess :: Set Access,
+--     carAccessRoleLegacy :: Either AccessRole (Set AccessRoleV2)
+--   }
+--   deriving stock (Eq, Show, Generic)
+--   deriving (Arbitrary) via (GenericUniform ConversationAccessRequest)
 
 data ConversationReceiptModeUpdate = ConversationReceiptModeUpdate
   { cruReceiptMode :: ReceiptMode

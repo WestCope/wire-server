@@ -41,6 +41,7 @@ import qualified Test.Tasty.Cannon as WS
 import Test.Tasty.HUnit
 import TestHelpers
 import TestSetup
+import Wire.API.Conversation (toConversationAccessDataResponse)
 import Wire.API.Conversation.Action
 import qualified Wire.API.Federation.API.Galley as F
 import Wire.API.Federation.Component
@@ -323,7 +324,7 @@ accessUpdateWithRemotes = do
       evtConv e @?= qconv
       evtType e @?= ConvAccessUpdate
       evtFrom e @?= qbob
-      evtData e @?= EdConvAccessUpdate access
+      evtData e @?= EdConvAccessUpdate (toConversationAccessDataResponse access)
 
 -- | Given an admin, another admin and a member run all
 --   the necessary checks targeting the admin

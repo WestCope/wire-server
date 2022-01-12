@@ -55,9 +55,10 @@ testObject_Event_user_2 =
     (Qualified (Id (fromJust (UUID.fromString "00006a88-0000-2acb-0000-6aa0000061b2"))) (Domain "faraway.example.com"))
     (read "1864-06-05 23:01:18.769 UTC")
     ( EdConvAccessUpdate
-        ( ConversationAccessData
-            { cupAccess = [InviteAccess, LinkAccess, PrivateAccess, InviteAccess, InviteAccess],
-              cupAccessRole = ActivatedAccessRole
+        ( ConversationAccessDataResponse
+            { cadrAccess = [InviteAccess, LinkAccess, PrivateAccess, InviteAccess, InviteAccess],
+              cadrAccessRole = ActivatedAccessRole,
+              cadrAccessRolesV2 = Set.fromList [TeamMemberAccessRole, GuestAccessRole]
             }
         )
     )

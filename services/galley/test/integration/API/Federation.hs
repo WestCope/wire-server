@@ -52,6 +52,7 @@ import qualified Test.Tasty.Cannon as WS
 import Test.Tasty.HUnit
 import TestHelpers
 import TestSetup
+import Wire.API.Conversation (toConversationAccessDataResponse)
 import Wire.API.Conversation.Action (ConversationAction (..))
 import Wire.API.Conversation.Member (Member (..))
 import Wire.API.Conversation.Role
@@ -489,7 +490,7 @@ notifyAccess = do
     []
     (ConversationActionAccessUpdate d)
     ConvAccessUpdate
-    (EdConvAccessUpdate d)
+    (EdConvAccessUpdate $ toConversationAccessDataResponse d)
 
 notifyMemberUpdate :: TestM ()
 notifyMemberUpdate = do

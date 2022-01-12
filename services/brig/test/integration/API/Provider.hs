@@ -87,6 +87,7 @@ import qualified Test.Tasty.Cannon as WS
 import Test.Tasty.HUnit
 import Util
 import Web.Cookie (SetCookie (..), parseSetCookie)
+import Wire.API.Conversation (toConversationAccessDataResponse)
 
 tests :: Domain -> Config -> Manager -> DB.ClientState -> Brig -> Cannon -> Galley -> IO TestTree
 tests dom conf p db b c g = do
@@ -1744,7 +1745,7 @@ svcAssertConvAccessUpdate buf usr upd cnv = liftIO $ do
       assertEqual "event type" ConvAccessUpdate (evtType e)
       assertEqual "conv" cnv (evtConv e)
       assertEqual "user" usr (evtFrom e)
-      assertEqual "event data" (EdConvAccessUpdate upd) (evtData e)
+      assertEqual "event data" (EdConvAccessUpdate $ toConversationAccessDataResponse upd) (evtData e)
     _ -> assertFailure "Event timeout (TestBotMessage: conv-access-update)"
 
 svcAssertConvDelete :: MonadIO m => Chan TestBotEvent -> Qualified UserId -> Qualified ConvId -> m ()

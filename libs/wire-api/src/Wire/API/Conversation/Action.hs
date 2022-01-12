@@ -70,7 +70,7 @@ conversationActionToEvent now quid qcnv (ConversationActionMemberUpdate target (
   let update = MemberUpdateData target Nothing Nothing Nothing Nothing Nothing Nothing role
    in Event MemberStateUpdate qcnv quid now (EdMemberUpdate update)
 conversationActionToEvent now quid qcnv (ConversationActionAccessUpdate update) =
-  Event ConvAccessUpdate qcnv quid now (EdConvAccessUpdate update)
+  Event ConvAccessUpdate qcnv quid now (EdConvAccessUpdate $ toConversationAccessDataResponse update)
 conversationActionToEvent now quid qcnv ConversationActionDelete =
   Event ConvDelete qcnv quid now EdConvDelete
 

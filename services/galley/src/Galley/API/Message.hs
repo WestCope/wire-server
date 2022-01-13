@@ -211,6 +211,112 @@ postRemoteOtrMessage sender conv rawMsg = do
       rpc = sendMessage clientRoutes msr
   msResponse <$> runFederated conv rpc
 
+postBroadcast ::
+  Members '[TeamError] r =>
+  Local UserId ->
+  Maybe ConnId ->
+  QualifiedNewOtrMessage ->
+  Sem r (PostOtrResponse MessageSendingStatus)
+postBroadcast lusr con msg = runError $ do
+  let senderClient = qualifiedNewOtrSender msg
+      senderDomain = tDomain lusr
+      senderUser = tUnqualified lusr
+      rcps = qualifiedNewOtrRecipients msg
+  now <- input
+
+  tid <- getBindingTeam senderUser
+  limit <- fromIntegral . fromRange <$> E.fanoutLimit
+  -- If we are going to fan this out to more than limit, we want to fail early
+  unless (Map.size (userClientMap (otrRecipientsMap rcps)) <= limit) $
+    throw BroadcastLimitExceeded
+  -- In large teams, we may still use the broadcast endpoint but only if `report_missing`
+  -- is used and length `report_missing` < limit since we cannot fetch larger teams than
+  -- that.
+  tMembers <-
+    fmap (view userId) <$> case qualifiedNewOtrClientMismatchStrategy msg of
+      -- Note: remote ids are not in a local team
+      MismatchReportOnly qus ->
+        maybeFetchLimitedTeamMemberList limit tid $
+          fst (partitionQualified lusr qus)
+      _ -> maybeFetchAllMembersInTeam tid
+  contacts <- E.getContactList senderUser
+  let users = toList $ Set.union (Set.fromList tMembers) (Set.fromList contacts)
+
+  isInternal <- E.useIntraClientListing
+  localClients <-
+    lift $
+      if isInternal
+        then Clients.fromUserClients <$> lookupClients users
+        else getClients users
+  let qualifiedLocalClients =
+        Map.mapKeys (localDomain,)
+          . makeUserMap (Set.fromList (map lmId localMembers))
+          . Clients.toMap
+          $ localClients
+
+  let (sendMessage, validMessages, mismatch) =
+        checkMessageClients
+          (senderDomain, senderUser, senderClient)
+          qualifiedClients
+          (flattenMap $ qualifiedNewOtrRecipients msg)
+          (qualifiedNewOtrClientMismatchStrategy msg)
+      otrResult = mkMessageSendingStatus (toUTCTimeMillis now) mismatch mempty
+  unless sendMessage $ do
+    let lhProtectee = qualifiedUserToProtectee localDomain senderType sender
+        missingClients = qmMissing mismatch
+        legalholdErr = pure MessageNotSentLegalhold
+
+    guardQualifiedLegalholdPolicyConflicts lhProtectee missingClients
+    throw $ MessageNotSentClientMissing otrResult
+
+    e <-
+      lift
+        . runLocalInput lcnv
+        . eitherM (const legalholdErr) (const clientMissingErr)
+        . runError @LegalholdConflicts
+        $ guardQualifiedLegalholdPolicyConflicts lhProtectee missingClients
+    throw e
+
+  failedToSend <-
+    lift $
+      sendMessages
+        now
+        sender
+        senderClient
+        mconn
+        lcnv
+        localMemberMap
+        (qualifiedNewOtrMetadata msg)
+        validMessages
+  pure otrResult {mssFailedToSend = failedToSend}
+  where
+    ---- | Sender
+    --(Domain, UserId, ClientId) ->
+    ---- | Participants of the conversation
+    ----
+    ---- When the set of clients for a given user is empty, that means the user is
+    ---- present in the conversation, but has no clients at all, and this is a
+    ---- valid state.
+    --Map (Domain, UserId) (Set ClientId) ->
+    ---- | Provided recipients and ciphertexts
+    --Map (Domain, UserId, ClientId) ByteString ->
+    ---- | Subset of missing clients to report
+    --ClientMismatchStrategy ->
+    --(Bool, Map (Domain, UserId, ClientId) ByteString, QualifiedMismatch)
+
+    maybeFetchLimitedTeamMemberList limit tid localUserIdsInFilter = do
+      let localUserIdsInRcps = Map.keys $ userClientMap (otrRecipientsMap rcps)
+      let localUserIdsToLookup = Set.toList $ Set.union (Set.fromList localUserIdsInFilter) (Set.fromList localUserIdsInRcps)
+      unless (length localUserIdsToLookup <= limit) $
+        throw BroadcastLimitExceeded
+      E.selectTeamMembers tid localUserIdsToLookup
+    maybeFetchAllMembersInTeam :: TeamId -> Sem r [TeamMember]
+    maybeFetchAllMembersInTeam tid = do
+      mems <- getTeamMembersForFanout tid
+      when (mems ^. teamMemberListType == ListTruncated) $
+        throw BroadcastLimitExceeded
+      pure (mems ^. teamMembers)
+
 postQualifiedOtrMessage ::
   Members
     '[ BrigAccess,

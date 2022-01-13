@@ -76,7 +76,7 @@ instance Cql FromAccessRoleLegacy where
 
   -- todo(leif): can we make this total?
   toCql (FromAccessRoleLegacy accessRoles)
-    | Set.null accessRoles = CqlInt 4
+    | Set.null accessRoles = CqlInt 1
     | accessRoles == Set.fromList [TeamMemberAccessRole] = CqlInt 2
     | accessRoles == Set.fromList [GuestAccessRole] = CqlInt 4
     | accessRoles == Set.fromList [ServiceAccessRole] = CqlInt 4
@@ -84,12 +84,7 @@ instance Cql FromAccessRoleLegacy where
     | accessRoles == Set.fromList [TeamMemberAccessRole, ServiceAccessRole] = CqlInt 4
     | accessRoles == Set.fromList [GuestAccessRole, ServiceAccessRole] = CqlInt 4
     | accessRoles == Set.fromList [TeamMemberAccessRole, GuestAccessRole, ServiceAccessRole] = CqlInt 4
-    | otherwise = error "todo(leif)"
-
-  -- toCql PrivateAccessRole = CqlInt 1
-  -- toCql TeamAccessRole = CqlInt 2
-  -- toCql ActivatedAccessRole = CqlInt 3
-  -- toCql NonActivatedAccessRole = CqlInt 4
+    | otherwise = CqlInt 1 -- can we avoid a catch all case?
 
   fromCql (CqlInt i) = case i of
     1 -> return $ FromAccessRoleLegacy (Set.fromList [])

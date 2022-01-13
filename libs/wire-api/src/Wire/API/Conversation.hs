@@ -447,6 +447,19 @@ data AccessRoleV2
   deriving (Arbitrary) via (GenericUniform AccessRoleV2)
   deriving (ToJSON, FromJSON, S.ToSchema) via Schema AccessRoleV2
 
+-- todo(leif): can we make this total?
+toAccessRoleLegacy :: Set AccessRoleV2 -> AccessRoleLegacy
+toAccessRoleLegacy accessRoles
+  | Set.null accessRoles = PrivateAccessRole
+  | accessRoles == Set.fromList [TeamMemberAccessRole] = TeamAccessRole
+  | accessRoles == Set.fromList [GuestAccessRole] = NonActivatedAccessRole
+  | accessRoles == Set.fromList [ServiceAccessRole] = NonActivatedAccessRole
+  | accessRoles == Set.fromList [TeamMemberAccessRole, GuestAccessRole] = NonActivatedAccessRole
+  | accessRoles == Set.fromList [TeamMemberAccessRole, ServiceAccessRole] = NonActivatedAccessRole
+  | accessRoles == Set.fromList [GuestAccessRole, ServiceAccessRole] = NonActivatedAccessRole
+  | accessRoles == Set.fromList [TeamMemberAccessRole, GuestAccessRole, ServiceAccessRole] = NonActivatedAccessRole
+  | otherwise = PrivateAccessRole
+
 newtype FromAccessRoleLegacy = FromAccessRoleLegacy {farlAccessRoles :: Set.Set AccessRoleV2}
 
 fromAccessRoleLegacy :: AccessRoleLegacy -> Set AccessRoleV2
@@ -455,18 +468,6 @@ fromAccessRoleLegacy = \case
   TeamAccessRole -> Set.fromList [TeamMemberAccessRole]
   ActivatedAccessRole -> Set.fromList [TeamMemberAccessRole, GuestAccessRole]
   NonActivatedAccessRole -> Set.fromList [TeamMemberAccessRole, GuestAccessRole, ServiceAccessRole]
-
-toAccessRoleLegacy :: Set AccessRoleV2 -> AccessRoleLegacy
-toAccessRoleLegacy accessRoles
-  | Set.null accessRoles = NonActivatedAccessRole
-  | accessRoles == Set.fromList [TeamMemberAccessRole] = TeamAccessRole
-  | accessRoles == Set.fromList [GuestAccessRole] = NonActivatedAccessRole
-  | accessRoles == Set.fromList [ServiceAccessRole] = NonActivatedAccessRole
-  | accessRoles == Set.fromList [TeamMemberAccessRole, GuestAccessRole] = NonActivatedAccessRole
-  | accessRoles == Set.fromList [TeamMemberAccessRole, ServiceAccessRole] = NonActivatedAccessRole
-  | accessRoles == Set.fromList [GuestAccessRole, ServiceAccessRole] = NonActivatedAccessRole
-  | accessRoles == Set.fromList [TeamMemberAccessRole, GuestAccessRole, ServiceAccessRole] = NonActivatedAccessRole
-  | otherwise = ActivatedAccessRole
 
 instance ToSchema AccessRoleV2 where
   schema =

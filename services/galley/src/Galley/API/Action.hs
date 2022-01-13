@@ -413,8 +413,7 @@ instance IsConversationAction ConversationAccessData where
     where
       filterActivated :: Member BrigAccess r => BotsAndMembers -> Sem r BotsAndMembers
       filterActivated bm
-        -- | convAccessRole conv > ActivatedAccessRole
-        --     && cupAccessRole action <= ActivatedAccessRole = do
+        -- | convAccessRole conv > ActivatedAccessRole && cupAccessRole action <= ActivatedAccessRole = do
         --   activated <- map User.userId <$> E.lookupActivatedUsers (toList (bmLocals bm))
         --   -- FUTUREWORK: should we also remove non-activated remote users?
         --   pure $ bm {bmLocals = Set.fromList activated}

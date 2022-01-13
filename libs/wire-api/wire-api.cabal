@@ -189,7 +189,6 @@ test-suite wire-api-golden-tests
       Test.Wire.API.Golden.FromJSON
       Test.Wire.API.Golden.Generated
       Test.Wire.API.Golden.Generated.Access_user
-      Test.Wire.API.Golden.Generated.AccessRole_user
       Test.Wire.API.Golden.Generated.AccessToken_user
       Test.Wire.API.Golden.Generated.Action_user
       Test.Wire.API.Golden.Generated.Activate_user

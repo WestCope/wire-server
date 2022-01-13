@@ -42,7 +42,6 @@ testObject_ConversationList_20Conversation_user_1 =
                   { cnvmType = RegularConv,
                     cnvmCreator = Id (fromJust (UUID.fromString "00000000-0000-0000-0000-000000000001")),
                     cnvmAccess = [],
-                    cnvmAccessRole = PrivateAccessRole,
                     cnvmAccessRoles = Set.empty,
                     cnvmName = Just "",
                     cnvmTeam = Just (Id (fromJust (UUID.fromString "00000000-0000-0000-0000-000100000001"))),

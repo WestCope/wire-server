@@ -460,6 +460,7 @@ toAccessRoleLegacy accessRoles
   | accessRoles == Set.fromList [TeamMemberAccessRole, GuestAccessRole, ServiceAccessRole] = NonActivatedAccessRole
   | otherwise = PrivateAccessRole
 
+-- todo: roundtrip alt -> neu -> alt
 newtype FromAccessRoleLegacy = FromAccessRoleLegacy {farlAccessRoles :: Set.Set AccessRoleV2}
 
 fromAccessRoleLegacy :: AccessRoleLegacy -> Set AccessRoleV2

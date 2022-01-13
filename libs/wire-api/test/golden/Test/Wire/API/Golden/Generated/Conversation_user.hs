@@ -41,7 +41,6 @@ testObject_Conversation_user_1 =
           { cnvmType = One2OneConv,
             cnvmCreator = Id (fromJust (UUID.fromString "00000001-0000-0001-0000-000200000001")),
             cnvmAccess = [],
-            cnvmAccessRole = PrivateAccessRole,
             cnvmAccessRoles = Set.empty,
             cnvmName = Just " 0",
             cnvmTeam = Just (Id (fromJust (UUID.fromString "00000001-0000-0001-0000-000100000002"))),
@@ -88,7 +87,6 @@ testObject_Conversation_user_2 =
                 PrivateAccess,
                 InviteAccess
               ],
-            cnvmAccessRole = NonActivatedAccessRole,
             cnvmAccessRoles = Set.fromList [TeamMemberAccessRole, GuestAccessRole, ServiceAccessRole],
             cnvmName = Just "",
             cnvmTeam = Nothing,

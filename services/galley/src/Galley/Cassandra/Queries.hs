@@ -187,7 +187,6 @@ updateTeamStatus :: PrepQuery W (TeamStatus, TeamId) ()
 updateTeamStatus = "update team set status = ? where team = ?"
 
 -- Conversations ------------------------------------------------------------
--- todo(leif): schema migration
 selectConv :: PrepQuery R (Identity ConvId) (ConvType, UserId, Maybe (C.Set Access), Maybe FromAccessRoleLegacy, Maybe (C.Set AccessRoleV2), Maybe Text, Maybe TeamId, Maybe Bool, Maybe Milliseconds, Maybe ReceiptMode)
 selectConv = "select type, creator, access, access_role, access_role_v2, name, team, deleted, message_timer, receipt_mode from conversation where conv = ?"
 

@@ -33,6 +33,7 @@ module Galley.Data.Conversation
     maybeRole,
     privateRole,
     defRegularConvAccess,
+    parseAccessRoles,
   )
 where
 
@@ -73,7 +74,6 @@ convMetadata c =
     (convType c)
     (convCreator c)
     (convAccess c)
-    (toAccessRole $ convAccessRoles c)
     (convAccessRoles c)
     (convName c)
     (convTeam c)
@@ -87,7 +87,7 @@ convAccessData conv =
     (convAccessRoles conv)
 
 defRole :: Set AccessRoleV2
-defRole = toAccessRoles ActivatedAccessRole
+defRole = Set.fromList [TeamMemberAccessRole, GuestAccessRole]
 
 maybeRole :: ConvType -> Maybe (Set AccessRoleV2) -> Set AccessRoleV2
 maybeRole SelfConv _ = privateRole
@@ -97,7 +97,10 @@ maybeRole RegularConv Nothing = defRole
 maybeRole RegularConv (Just r) = r
 
 privateRole :: Set AccessRoleV2
-privateRole = toAccessRoles PrivateAccessRole
+privateRole = Set.fromList []
 
 defRegularConvAccess :: [Access]
 defRegularConvAccess = [InviteAccess]
+
+parseAccessRoles :: Maybe FromAccessRoleLegacy -> Maybe (Set AccessRoleV2) -> Maybe (Set AccessRoleV2)
+parseAccessRoles = undefined

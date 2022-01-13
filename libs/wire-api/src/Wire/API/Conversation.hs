@@ -49,6 +49,7 @@ module Wire.API.Conversation
     AccessRoleV2 (..),
     ConvType (..),
     ReceiptMode (..),
+    FromAccessRoleLegacy (..),
 
     -- * create
     NewConv (..),
@@ -446,6 +447,8 @@ data AccessRoleV2
   deriving (Arbitrary) via (GenericUniform AccessRoleV2)
   deriving (ToJSON, FromJSON, S.ToSchema) via Schema AccessRoleV2
 
+newtype FromAccessRoleLegacy = FromAccessRoleLegacy {farlAccessRoles :: Set.Set AccessRoleV2}
+
 fromAccessRoleLegacy :: AccessRoleLegacy -> Set AccessRoleV2
 fromAccessRoleLegacy = \case
   PrivateAccessRole -> Set.fromList []
@@ -453,7 +456,6 @@ fromAccessRoleLegacy = \case
   ActivatedAccessRole -> Set.fromList [TeamMemberAccessRole, GuestAccessRole]
   NonActivatedAccessRole -> Set.fromList [TeamMemberAccessRole, GuestAccessRole, ServiceAccessRole]
 
--- todo(leif): check if this works, might be better to return Maybe and let the call side decide what to do in case of incompatibility
 toAccessRoleLegacy :: Set AccessRoleV2 -> AccessRoleLegacy
 toAccessRoleLegacy accessRoles
   | Set.null accessRoles = NonActivatedAccessRole

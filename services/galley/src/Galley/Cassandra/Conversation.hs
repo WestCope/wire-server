@@ -72,7 +72,6 @@ createConversation (NewConversation ty usr acc arole name mtid mtimer recpt user
         convCreator = usr,
         convName = fmap fromRange name,
         convAccess = acc,
-        convAccessRole = toAccessRole arole,
         convAccessRoles = arole,
         convLocalMembers = lmems,
         convRemoteMembers = rmems,
@@ -102,7 +101,6 @@ createConnectConversation a b name = do
         convCreator = a',
         convName = fmap fromRange name,
         convAccess = [PrivateAccess],
-        convAccessRole = toAccessRole privateRole,
         convAccessRoles = privateRole,
         convLocalMembers = lmems,
         convRemoteMembers = rmems,
@@ -130,7 +128,6 @@ createConnectConversationWithRemote cid creator m = do
         convCreator = creator,
         convName = Nothing,
         convAccess = [PrivateAccess],
-        convAccessRole = toAccessRole privateRole,
         convAccessRoles = privateRole,
         convLocalMembers = lmems,
         convRemoteMembers = rmems,
@@ -181,7 +178,6 @@ createOne2OneConversation conv self other name mtid = do
         convCreator = tUnqualified self,
         convName = fmap fromRange name,
         convAccess = [PrivateAccess],
-        convAccessRole = toAccessRole privateRole,
         convAccessRoles = privateRole,
         convLocalMembers = lmems,
         convRemoteMembers = rmems,
@@ -206,7 +202,6 @@ createSelfConversation lusr name = do
         convCreator = usr,
         convName = fmap fromRange name,
         convAccess = [PrivateAccess],
-        convAccessRole = toAccessRole privateRole,
         convAccessRoles = privateRole,
         convLocalMembers = lmems,
         convRemoteMembers = rmems,
@@ -234,8 +229,9 @@ conversationMeta conv =
     <$> retry x1 (query1 Cql.selectConv (params LocalQuorum (Identity conv)))
   where
     toConvMeta (t, c, a, r, rV2, n, i, _, mt, rm) =
-      let accessRoles = maybeRole t (Set.fromList . Cql.fromSet <$> rV2)
-       in ConversationMetadata t c (defAccess t a) (toAccessRole accessRoles) accessRoles n i mt rm
+      let mbAccessRolesV2 = Set.fromList . Cql.fromSet <$> rV2
+          accessRoles = maybeRole t $ parseAccessRoles r mbAccessRolesV2
+       in ConversationMetadata t c (defAccess t a) accessRoles n i mt rm
 
 isConvAlive :: ConvId -> Client Bool
 isConvAlive cid = do
@@ -344,14 +340,15 @@ toConv ::
   ConvId ->
   [LocalMember] ->
   [RemoteMember] ->
-  Maybe (ConvType, UserId, Maybe (Cql.Set Access), Maybe AccessRoleLegacy, Maybe (Cql.Set AccessRoleV2), Maybe Text, Maybe TeamId, Maybe Bool, Maybe Milliseconds, Maybe ReceiptMode) ->
+  Maybe (ConvType, UserId, Maybe (Cql.Set Access), Maybe FromAccessRoleLegacy, Maybe (Cql.Set AccessRoleV2), Maybe Text, Maybe TeamId, Maybe Bool, Maybe Milliseconds, Maybe ReceiptMode) ->
   Maybe Conversation
 toConv cid mms remoteMems conv =
   f mms <$> conv
   where
     f ms (cty, uid, acc, role, roleV2, nme, ti, del, timer, rm) =
-      let accessRoles = maybeRole cty (Set.fromList . Cql.fromSet <$> roleV2)
-       in Conversation cid cty uid nme (defAccess cty acc) (toAccessRole accessRoles) accessRoles ms remoteMems ti del timer rm
+      let mbAccessRolesV2 = Set.fromList . Cql.fromSet <$> roleV2
+          accessRoles = maybeRole cty $ parseAccessRoles role mbAccessRolesV2
+       in Conversation cid cty uid nme (defAccess cty acc) accessRoles ms remoteMems ti del timer rm
 
 interpretConversationStoreToCassandra ::
   Members '[Embed IO, Input ClientState, TinyLog] r =>

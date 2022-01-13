@@ -26,13 +26,13 @@ where
 import Cassandra.CQL
 import Control.Error (note)
 import Data.Domain (Domain, domainText, mkDomain)
+import qualified Data.Set as Set
 import Galley.Types
 import Galley.Types.Bot ()
 import Galley.Types.Teams
 import Galley.Types.Teams.Intra
 import Galley.Types.Teams.SearchVisibility
 import Imports
-import Wire.API.Conversation (AccessRoleV2)
 import qualified Wire.API.Team.Feature as Public
 
 deriving instance Cql MutedStatus
@@ -71,26 +71,48 @@ instance Cql Access where
     n -> Left $ "Unexpected Access value: " ++ show n
   fromCql _ = Left "Access value: int expected"
 
-instance Cql AccessRoleLegacy where
+instance Cql FromAccessRoleLegacy where
   ctype = Tagged IntColumn
 
-  toCql PrivateAccessRole = CqlInt 1
-  toCql TeamAccessRole = CqlInt 2
-  toCql ActivatedAccessRole = CqlInt 3
-  toCql NonActivatedAccessRole = CqlInt 4
+  -- todo(leif): can we make this total?
+  toCql (FromAccessRoleLegacy accessRoles)
+    | Set.null accessRoles = CqlInt 4
+    | accessRoles == Set.fromList [TeamMemberAccessRole] = CqlInt 2
+    | accessRoles == Set.fromList [GuestAccessRole] = CqlInt 4
+    | accessRoles == Set.fromList [ServiceAccessRole] = CqlInt 4
+    | accessRoles == Set.fromList [TeamMemberAccessRole, GuestAccessRole] = CqlInt 4
+    | accessRoles == Set.fromList [TeamMemberAccessRole, ServiceAccessRole] = CqlInt 4
+    | accessRoles == Set.fromList [GuestAccessRole, ServiceAccessRole] = CqlInt 4
+    | accessRoles == Set.fromList [TeamMemberAccessRole, GuestAccessRole, ServiceAccessRole] = CqlInt 4
+    | otherwise = error "todo(leif)"
+
+  -- toCql PrivateAccessRole = CqlInt 1
+  -- toCql TeamAccessRole = CqlInt 2
+  -- toCql ActivatedAccessRole = CqlInt 3
+  -- toCql NonActivatedAccessRole = CqlInt 4
 
   fromCql (CqlInt i) = case i of
-    1 -> return PrivateAccessRole
-    2 -> return TeamAccessRole
-    3 -> return ActivatedAccessRole
-    4 -> return NonActivatedAccessRole
+    1 -> return $ FromAccessRoleLegacy (Set.fromList [])
+    2 -> return $ FromAccessRoleLegacy (Set.fromList [TeamMemberAccessRole])
+    3 -> return $ FromAccessRoleLegacy (Set.fromList [TeamMemberAccessRole, GuestAccessRole])
+    4 -> return $ FromAccessRoleLegacy (Set.fromList [TeamMemberAccessRole, GuestAccessRole, ServiceAccessRole])
     n -> Left $ "Unexpected AccessRoleLegacy value: " ++ show n
   fromCql _ = Left "AccessRoleLegacy value: int expected"
 
 instance Cql AccessRoleV2 where
-  ctype = error "todo(leif)"
-  toCql = error "todo(leif)"
-  fromCql = error "todo(leif)"
+  ctype = Tagged IntColumn
+
+  toCql = \case
+    TeamMemberAccessRole -> CqlInt 1
+    GuestAccessRole -> CqlInt 2
+    ServiceAccessRole -> CqlInt 3
+
+  fromCql (CqlInt i) = case i of
+    1 -> return TeamMemberAccessRole
+    2 -> return GuestAccessRole
+    3 -> return ServiceAccessRole
+    n -> Left $ "Unexpected AccessRoleV2 value: " ++ show n
+  fromCql _ = Left "AccessRoleV2 value: int expected"
 
 instance Cql ConvTeamInfo where
   ctype = Tagged $ UdtColumn "teaminfo" [("teamid", UuidColumn), ("managed", BooleanColumn)]

@@ -30,7 +30,6 @@ import Servant.API.Generic
 import Wire.API.Arbitrary (Arbitrary, GenericUniform (..))
 import Wire.API.Conversation
   ( Access,
-    AccessRoleLegacy,
     AccessRoleV2,
     ConvType,
     ConversationMetadata,
@@ -158,7 +157,6 @@ data NewRemoteConversation conv = NewRemoteConversation
     -- | The conversation type
     rcCnvType :: ConvType,
     rcCnvAccess :: [Access],
-    rcCnvAccessRole :: AccessRoleLegacy,
     rcCnvAccessRoles :: Set AccessRoleV2,
     -- | The conversation name,
     rcCnvName :: Maybe Text,

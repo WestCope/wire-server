@@ -647,7 +647,6 @@ toNewRemoteConversation now localDomain Data.Conversation {..} =
       rcCnvId = convId,
       rcCnvType = convType,
       rcCnvAccess = convAccess,
-      rcCnvAccessRole = convAccessRole,
       rcCnvAccessRoles = convAccessRoles,
       rcCnvName = convName,
       rcNonCreatorMembers = toMembers (filter (\lm -> lmId lm /= convCreator) convLocalMembers) convRemoteMembers,
@@ -715,7 +714,6 @@ fromNewRemoteConversation loc rc@NewRemoteConversation {..} =
             -- domain
             cnvmCreator = rcOrigUserId,
             cnvmAccess = rcCnvAccess,
-            cnvmAccessRole = rcCnvAccessRole,
             cnvmAccessRoles = rcCnvAccessRoles,
             cnvmName = rcCnvName,
             -- FUTUREWORK: Document this is the same domain as the conversation

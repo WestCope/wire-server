@@ -39,6 +39,7 @@ import Wire.API.Conversation.Member (OtherMember)
 import Wire.API.Conversation.Role (RoleName)
 import Wire.API.Federation.API.Common
 import Wire.API.Federation.Endpoint
+import Wire.API.Federation.Version
 import Wire.API.Message (MessageNotSent, MessageSendingStatus, PostOtrResponse, Priority)
 import Wire.API.User.Client (UserClientMap)
 import Wire.API.Util.Aeson (CustomEncoded (..))
@@ -48,7 +49,9 @@ import Wire.API.Util.Aeson (CustomEncoded (..))
 -- for the current list we need.
 
 -- | For conventions see /docs/developer/federation-api-conventions.md
-type GalleyApi =
+type family GalleyApi (v :: Version)
+
+type instance GalleyApi 'V0 =
   -- | Register a new conversation
   FedEndpoint "on-conversation-created" (NewRemoteConversation ConvId) ()
     :<|> FedEndpoint "get-conversations" GetConversationsRequest GetConversationsResponse

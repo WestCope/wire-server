@@ -1323,7 +1323,7 @@ updateConversationAccess ::
   UserId ->
   ConvId ->
   [Access] ->
-  AccessRole ->
+  AccessRoleLegacy ->
   Http ResponseLBS
 updateConversationAccess galley uid cid access role =
   put $

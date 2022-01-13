@@ -16,16 +16,16 @@
 -- with this program. If not, see <https://www.gnu.org/licenses/>.
 module Test.Wire.API.Golden.Generated.AccessRole_user where
 
-import Wire.API.Conversation (AccessRole (..))
+import Wire.API.Conversation (AccessRoleLegacy (..))
 
-testObject_AccessRole_user_1 :: AccessRole
+testObject_AccessRole_user_1 :: AccessRoleLegacy
 testObject_AccessRole_user_1 = PrivateAccessRole
 
-testObject_AccessRole_user_2 :: AccessRole
+testObject_AccessRole_user_2 :: AccessRoleLegacy
 testObject_AccessRole_user_2 = NonActivatedAccessRole
 
-testObject_AccessRole_user_3 :: AccessRole
+testObject_AccessRole_user_3 :: AccessRoleLegacy
 testObject_AccessRole_user_3 = ActivatedAccessRole
 
-testObject_AccessRole_user_4 :: AccessRole
+testObject_AccessRole_user_4 :: AccessRoleLegacy
 testObject_AccessRole_user_4 = TeamAccessRole

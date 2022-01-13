@@ -423,7 +423,7 @@ tests =
             (Test.Wire.API.Golden.Generated.Access_user.testObject_Access_user_3, "testObject_Access_user_3.json"),
             (Test.Wire.API.Golden.Generated.Access_user.testObject_Access_user_4, "testObject_Access_user_4.json")
           ],
-      testGroup "Golden: AccessRole_user" $
+      testGroup "Golden: AccessRoleLegacy_user" $
         testObjects
           [ (Test.Wire.API.Golden.Generated.AccessRole_user.testObject_AccessRole_user_1, "testObject_AccessRole_user_1.json"),
             (Test.Wire.API.Golden.Generated.AccessRole_user.testObject_AccessRole_user_2, "testObject_AccessRole_user_2.json"),

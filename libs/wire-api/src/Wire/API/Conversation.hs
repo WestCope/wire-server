@@ -28,7 +28,6 @@ module Wire.API.Conversation
     cnvType,
     cnvCreator,
     cnvAccess,
-    cnvAccessRole,
     cnvName,
     cnvTeam,
     cnvMessageTimer,
@@ -47,7 +46,6 @@ module Wire.API.Conversation
 
     -- * Conversation properties
     Access (..),
-    AccessRole (..),
     AccessRoleV2 (..),
     ConvType (..),
     ReceiptMode (..),
@@ -66,12 +64,8 @@ module Wire.API.Conversation
     -- * update
     ConversationRename (..),
     ConversationAccessData (..),
-    ConversationAccessDataResponse (..),
     ConversationReceiptModeUpdate (..),
     ConversationMessageTimerUpdate (..),
-    toConversationAccessDataResponse,
-    toAccessRole,
-    toAccessRoles,
 
     -- * re-exports
     module Wire.API.Conversation.Member,
@@ -96,7 +90,6 @@ import Control.Applicative
 import Control.Lens (at, (?~))
 import Data.Aeson (FromJSON (..), ToJSON (..))
 import qualified Data.Aeson as A
-import qualified Data.Aeson.Types as A
 import Data.Id
 import Data.List.NonEmpty (NonEmpty)
 import Data.List1
@@ -124,7 +117,6 @@ data ConversationMetadata = ConversationMetadata
     -- FUTUREWORK: Make this a qualified user ID.
     cnvmCreator :: UserId,
     cnvmAccess :: [Access],
-    cnvmAccessRole :: AccessRole,
     cnvmAccessRoles :: Set AccessRoleV2,
     cnvmName :: Maybe Text,
     -- FUTUREWORK: Think if it makes sense to make the team ID qualified due to
@@ -137,13 +129,32 @@ data ConversationMetadata = ConversationMetadata
   deriving (Arbitrary) via (GenericUniform ConversationMetadata)
   deriving (FromJSON, ToJSON) via Schema ConversationMetadata
 
-conversationMetadataObjectSchema ::
-  SchemaP
-    SwaggerDoc
-    A.Object
-    [A.Pair]
-    ConversationMetadata
-    ConversationMetadata
+accessRolesSchema :: ObjectSchema SwaggerDoc (Set AccessRoleV2)
+accessRolesSchema = toOutput .= accessRolesSchemaTuple `withParser` validate
+  where
+    toOutput accessRoles = (Just $ toAccessRoleLegacy accessRoles, Just accessRoles)
+    validate =
+      \case
+        (_, Just v2) -> pure v2
+        (Just legacy, Nothing) -> pure $ fromAccessRoleLegacy legacy
+        (Nothing, Nothing) -> fail "access_role|access_role_v2"
+
+accessRolesSchemaOpt :: ObjectSchema SwaggerDoc (Maybe (Set AccessRoleV2))
+accessRolesSchemaOpt = toOutput .= accessRolesSchemaTuple `withParser` validate
+  where
+    toOutput accessRoles = (toAccessRoleLegacy <$> accessRoles, accessRoles)
+    validate =
+      \case
+        (_, Just v2) -> pure $ Just v2
+        (Just legacy, Nothing) -> pure $ Just (fromAccessRoleLegacy legacy)
+        (Nothing, Nothing) -> pure Nothing
+
+accessRolesSchemaTuple :: ObjectSchema SwaggerDoc (Maybe AccessRoleLegacy, Maybe (Set AccessRoleV2))
+accessRolesSchemaTuple =
+  (,) <$> fst .= optField "access_role" (maybeWithDefault A.Null schema)
+    <*> snd .= optField "access_role_v2" (maybeWithDefault A.Null $ set schema)
+
+conversationMetadataObjectSchema :: ObjectSchema SwaggerDoc ConversationMetadata
 conversationMetadataObjectSchema =
   ConversationMetadata
     <$> cnvmType .= field "type" schema
@@ -153,8 +164,7 @@ conversationMetadataObjectSchema =
         (description ?~ "The creator's user ID")
         schema
     <*> cnvmAccess .= field "access" (array schema)
-    <*> cnvmAccessRole .= field "access_role" schema
-    <*> cnvmAccessRoles .= field "access_role_v2" (set schema)
+    <*> cnvmAccessRoles .= accessRolesSchema
     <*> cnvmName .= optField "name" (maybeWithDefault A.Null schema)
     <* const ("0.0" :: Text) .= optional (field "last_event" schema)
     <* const ("1970-01-01T00:00:00.000Z" :: Text)
@@ -185,21 +195,6 @@ data Conversation = Conversation
   deriving (Arbitrary) via (GenericUniform Conversation)
   deriving (FromJSON, ToJSON, S.ToSchema) via Schema Conversation
 
--- mkConversation ::
---   Qualified ConvId ->
---   ConvType ->
---   UserId ->
---   [Access] ->
---   AccessRole ->
---   Maybe Text ->
---   ConvMembers ->
---   Maybe TeamId ->
---   Maybe Milliseconds ->
---   Maybe ReceiptMode ->
---   Conversation
--- mkConversation qid ty uid acc role name mems tid ms rm =
---   Conversation qid (ConversationMetadata ty uid acc role name tid ms rm) mems
-
 cnvType :: Conversation -> ConvType
 cnvType = cnvmType . cnvMetadata
 
@@ -208,9 +203,6 @@ cnvCreator = cnvmCreator . cnvMetadata
 
 cnvAccess :: Conversation -> [Access]
 cnvAccess = cnvmAccess . cnvMetadata
-
-cnvAccessRole :: Conversation -> AccessRole
-cnvAccessRole = cnvmAccessRole . cnvMetadata
 
 cnvAccessRoles :: Conversation -> Set AccessRoleV2
 cnvAccessRoles = cnvmAccessRoles . cnvMetadata
@@ -431,7 +423,7 @@ typeAccess = Doc.string . Doc.enum $ cs . A.encode <$> [(minBound :: Access) ..]
 -- | AccessRoles define who can join conversations. The roles are
 -- "supersets", i.e. Activated includes Team and NonActivated includes
 -- Activated.
-data AccessRole
+data AccessRoleLegacy
   = -- | Nobody can be invited to this conversation
     --   (e.g. it's a 1:1 conversation)
     PrivateAccessRole
@@ -443,8 +435,8 @@ data AccessRole
   | -- | No checks
     NonActivatedAccessRole
   deriving stock (Eq, Ord, Show, Generic)
-  deriving (Arbitrary) via (GenericUniform AccessRole)
-  deriving (ToJSON, FromJSON, S.ToSchema) via Schema AccessRole
+  deriving (Arbitrary) via (GenericUniform AccessRoleLegacy)
+  deriving (ToJSON, FromJSON, S.ToSchema) via Schema AccessRoleLegacy
 
 data AccessRoleV2
   = TeamMemberAccessRole
@@ -454,24 +446,24 @@ data AccessRoleV2
   deriving (Arbitrary) via (GenericUniform AccessRoleV2)
   deriving (ToJSON, FromJSON, S.ToSchema) via Schema AccessRoleV2
 
-toAccessRoles :: AccessRole -> Set AccessRoleV2
-toAccessRoles = \case
+fromAccessRoleLegacy :: AccessRoleLegacy -> Set AccessRoleV2
+fromAccessRoleLegacy = \case
   PrivateAccessRole -> Set.fromList []
   TeamAccessRole -> Set.fromList [TeamMemberAccessRole]
   ActivatedAccessRole -> Set.fromList [TeamMemberAccessRole, GuestAccessRole]
   NonActivatedAccessRole -> Set.fromList [TeamMemberAccessRole, GuestAccessRole, ServiceAccessRole]
 
 -- todo(leif): check if this works, might be better to return Maybe and let the call side decide what to do in case of incompatibility
-toAccessRole :: Set AccessRoleV2 -> AccessRole
-toAccessRole accessRoles
+toAccessRoleLegacy :: Set AccessRoleV2 -> AccessRoleLegacy
+toAccessRoleLegacy accessRoles
   | Set.null accessRoles = NonActivatedAccessRole
-  | Set.fromList [TeamMemberAccessRole] == accessRoles = TeamAccessRole
-  | Set.fromList [GuestAccessRole] == accessRoles = NonActivatedAccessRole
-  | Set.fromList [ServiceAccessRole] == accessRoles = NonActivatedAccessRole
-  | Set.fromList [TeamMemberAccessRole, GuestAccessRole] == accessRoles = NonActivatedAccessRole
-  | Set.fromList [TeamMemberAccessRole, ServiceAccessRole] == accessRoles = NonActivatedAccessRole
-  | Set.fromList [GuestAccessRole, ServiceAccessRole] == accessRoles = NonActivatedAccessRole
-  | Set.fromList [TeamMemberAccessRole, GuestAccessRole, ServiceAccessRole] == accessRoles = NonActivatedAccessRole
+  | accessRoles == Set.fromList [TeamMemberAccessRole] = TeamAccessRole
+  | accessRoles == Set.fromList [GuestAccessRole] = NonActivatedAccessRole
+  | accessRoles == Set.fromList [ServiceAccessRole] = NonActivatedAccessRole
+  | accessRoles == Set.fromList [TeamMemberAccessRole, GuestAccessRole] = NonActivatedAccessRole
+  | accessRoles == Set.fromList [TeamMemberAccessRole, ServiceAccessRole] = NonActivatedAccessRole
+  | accessRoles == Set.fromList [GuestAccessRole, ServiceAccessRole] = NonActivatedAccessRole
+  | accessRoles == Set.fromList [TeamMemberAccessRole, GuestAccessRole, ServiceAccessRole] = NonActivatedAccessRole
   | otherwise = ActivatedAccessRole
 
 instance ToSchema AccessRoleV2 where
@@ -484,10 +476,10 @@ instance ToSchema AccessRoleV2 where
             element "service" ServiceAccessRole
           ]
 
-instance ToSchema AccessRole where
+instance ToSchema AccessRoleLegacy where
   schema =
     (S.schema . description ?~ "Which users can join conversations (deprecated)") $
-      enum @Text "AccessRole" $
+      enum @Text "AccessRoleLegacy" $
         mconcat
           [ element "private" PrivateAccessRole,
             element "team" TeamAccessRole,
@@ -634,7 +626,6 @@ data NewConv = NewConv
     newConvQualifiedUsers :: [Qualified UserId],
     newConvName :: Maybe Text,
     newConvAccess :: Set Access,
-    newConvAccessRole :: Maybe AccessRole,
     newConvAccessRoles :: Maybe (Set AccessRoleV2),
     newConvTeam :: Maybe ConvTeamInfo,
     newConvMessageTimer :: Maybe Milliseconds,
@@ -668,8 +659,7 @@ newConvSchema =
       <*> newConvName .= maybe_ (optField "name" schema)
       <*> (Set.toList . newConvAccess)
         .= (fromMaybe mempty <$> optField "access" (Set.fromList <$> array schema))
-      <*> newConvAccessRole .= maybe_ (optField "access_role" schema)
-      <*> newConvAccessRoles .= maybe_ (optField "access_roles_v2" (set schema))
+      <*> newConvAccessRoles .= accessRolesSchemaOpt
       <*> newConvTeam
         .= maybe_
           ( optFieldWithDocModifier
@@ -836,33 +826,6 @@ modelConversationAccessData = Doc.defineModel "ConversationAccessData" $ do
     Doc.description "List of conversation access modes."
   Doc.property "access_role" Doc.bytes' $
     Doc.description "Conversation access role: private|team|activated|non_activated"
-
-data ConversationAccessDataResponse = ConversationAccessDataResponse
-  { cadrAccess :: Set Access,
-    cadrAccessRole :: AccessRole,
-    cadrAccessRolesV2 :: Set AccessRoleV2
-  }
-  deriving stock (Eq, Show, Generic)
-  deriving (Arbitrary) via (GenericUniform ConversationAccessDataResponse)
-  deriving (FromJSON, ToJSON, S.ToSchema) via Schema ConversationAccessDataResponse
-
-instance ToSchema ConversationAccessDataResponse where
-  schema =
-    object "ConversationAccessDataResponse" $
-      ConversationAccessDataResponse
-        <$> cadrAccess .= field "access" (set schema)
-        <*> cadrAccessRole .= field "access_role" schema
-        <*> cadrAccessRolesV2 .= field "access_role_v2" (set schema)
-
-toConversationAccessDataResponse :: ConversationAccessData -> ConversationAccessDataResponse
-toConversationAccessDataResponse (ConversationAccessData access accessRoles) = ConversationAccessDataResponse access (toAccessRole accessRoles) accessRoles
-
--- data ConversationAccessRequest = ConversationAccessRequest
---   { carAccess :: Set Access,
---     carAccessRoleLegacy :: Either AccessRole (Set AccessRoleV2)
---   }
---   deriving stock (Eq, Show, Generic)
---   deriving (Arbitrary) via (GenericUniform ConversationAccessRequest)
 
 data ConversationReceiptModeUpdate = ConversationReceiptModeUpdate
   { cruReceiptMode :: ReceiptMode

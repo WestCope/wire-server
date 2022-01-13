@@ -71,7 +71,7 @@ instance Cql Access where
     n -> Left $ "Unexpected Access value: " ++ show n
   fromCql _ = Left "Access value: int expected"
 
-instance Cql AccessRole where
+instance Cql AccessRoleLegacy where
   ctype = Tagged IntColumn
 
   toCql PrivateAccessRole = CqlInt 1
@@ -84,8 +84,8 @@ instance Cql AccessRole where
     2 -> return TeamAccessRole
     3 -> return ActivatedAccessRole
     4 -> return NonActivatedAccessRole
-    n -> Left $ "Unexpected AccessRole value: " ++ show n
-  fromCql _ = Left "AccessRole value: int expected"
+    n -> Left $ "Unexpected AccessRoleLegacy value: " ++ show n
+  fromCql _ = Left "AccessRoleLegacy value: int expected"
 
 instance Cql AccessRoleV2 where
   ctype = error "todo(leif)"

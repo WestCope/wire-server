@@ -55,7 +55,7 @@ module Galley.Types
     TypingData (..),
     OtrMessage (..),
     Access (..),
-    AccessRole (..),
+    AccessRoleLegacy (..),
     ConversationList (..),
     ConversationRename (..),
     ConversationAccessData (..),

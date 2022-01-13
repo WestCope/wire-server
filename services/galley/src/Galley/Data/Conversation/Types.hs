@@ -36,7 +36,7 @@ data Conversation = Conversation
     convCreator :: UserId,
     convName :: Maybe Text,
     convAccess :: [Access],
-    convAccessRole :: AccessRole,
+    convAccessRole :: AccessRoleLegacy,
     convAccessRoles :: Set AccessRoleV2,
     convLocalMembers :: [LocalMember],
     convRemoteMembers :: [RemoteMember],

@@ -27,7 +27,7 @@ import qualified Data.UUID as UUID (fromString)
 import Imports (Bool (False, True), Maybe (Just, Nothing), fromJust)
 import Wire.API.Conversation
   ( Access (CodeAccess, InviteAccess, LinkAccess, PrivateAccess),
-    AccessRole
+    AccessRoleLegacy
       ( ActivatedAccessRole
       ),
     ConvTeamInfo (ConvTeamInfo, cnvManaged, cnvTeamId),

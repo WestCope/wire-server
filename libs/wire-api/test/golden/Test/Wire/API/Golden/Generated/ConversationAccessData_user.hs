@@ -20,7 +20,7 @@ module Test.Wire.API.Golden.Generated.ConversationAccessData_user where
 
 import Wire.API.Conversation
   ( Access (InviteAccess),
-    AccessRole (ActivatedAccessRole, NonActivatedAccessRole),
+    AccessRoleLegacy (ActivatedAccessRole, NonActivatedAccessRole),
     ConversationAccessData (..),
   )
 
